@@ -7,8 +7,6 @@ import cv2
 import numpy as np
 import logging
 import json
-from detector import FireExtinguisherDetector
-
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,8 +25,17 @@ Path("uploads").mkdir(exist_ok=True)
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 初始化检测器
-detector = FireExtinguisherDetector()
+# 初始化检测器 - 使用修复版本避免YOLO下载问题
+try:
+    from detector_fixed import FireExtinguisherDetector
+    # 使用模拟模式（避免YOLO下载问题）
+    detector = FireExtinguisherDetector(use_simulation=True)
+    logger.info("使用修复版检测器（模拟模式）")
+except ImportError:
+    # 回退到原始检测器
+    from detector import FireExtinguisherDetector
+    detector = FireExtinguisherDetector()
+    logger.info("使用原始检测器")
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
