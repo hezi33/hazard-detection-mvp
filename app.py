@@ -33,8 +33,14 @@ detector = FireExtinguisherDetector()
 @app.get("/", response_class=HTMLResponse)
 async def home():
     """首页 - 上传页面"""
-    with open("templates/index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    # 使用修复后的HTML
+    try:
+        with open("templates/fixed_index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        # 如果修复文件不存在，使用原始文件
+        with open("templates/index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
 
 @app.post("/api/check")
 async def check_fire_extinguisher(file: UploadFile = File(...)):

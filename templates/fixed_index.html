@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隐患检测MVP - 修复版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+        
+        .upload-area.dragover {
+            background: #eef2ff;
+            border-color: #4c51bf;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .preview {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9ff;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            display: none;
+        }
+        
+        .result h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .result h3 .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .status.normal {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .status.hazard {
+            background: #f56565;
+            color: white;
+        }
+        
+        .result pre {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            background: #e6fffa;
+            border-left: 5px solid #38b2ac;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 10px;
+        }
+        
+        .info-box h4 {
+            color: #2c7a7b;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+            font-size: 0.9em;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .error {
+            background: #fed7d7;
+            border-left: 5px solid #f56565;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 隐患检测MVP - 修复版</h1>
+            <p>灭火器压力表检测系统 - 已修复上传问题</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <div class="upload-text">点击选择图片或拖拽到此处</div>
+                <p style="color: #718096; margin-bottom: 20px;">支持 JPG、PNG 格式，建议图片大小 &lt; 5MB</p>
+                
+                <!-- 修复：使用form但阻止默认提交 -->
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <input type="file" id="fileInput" class="file-input" accept="image/*">
+                    <button type="button" class="btn" onclick="document.getElementById('fileInput').click()">选择图片</button>
+                    <button type="button" class="btn" id="detectBtn" disabled onclick="uploadAndDetect()">检测</button>
+                </form>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在检测中，请稍候...</p>
+            </div>
+            
+            <div class="error" id="errorBox">
+                <strong>错误：</strong><span id="errorMessage"></span>
+            </div>
+            
+            <div class="preview" id="preview"></div>
+            
+            <div class="result" id="result">
+                <h3>
+                    检测结果
+                    <span class="status" id="statusBadge"></span>
+                </h3>
+                <pre id="resultJson"></pre>
+            </div>
+            
+            <div class="info-box">
+                <h4>📋 修复说明</h4>
+                <p>• <strong>已修复：</strong>上传后空白页问题</p>
+                <p>• <strong>新功能：</strong>使用AJAX异步请求，不刷新页面</p>
+                <p>• <strong>测试方法：</strong>选择图片 → 点击检测 → 查看结果</p>
+                <p>• <strong>验证目标：</strong>API返回JSON格式数据</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>隐患检测系统 MVP | 修复版本 1.0.1 | 技术链路验证</p>
+        </div>
+    </div>
+    
+    <script>
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const detectBtn = document.getElementById('detectBtn');
+        const preview = document.getElementById('preview');
+        const result = document.getElementById('result');
+        const resultJson = document.getElementById('resultJson');
+        const statusBadge = document.getElementById('statusBadge');
+        const loading = document.getElementById('loading');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        let selectedFile = null;
+        
+        // 拖拽功能
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.add('dragover');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('dragover');
+            }, false);
+        });
+        
+        uploadArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFileSelect(files[0]);
+        }
+        
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                handleFileSelect(this.files[0]);
+            }
+        });
+        
+        function handleFileSelect(file) {
+            if (!file.type.match('image.*')) {
+                showError('请选择图片文件！');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // 显示预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="预览">`;
+                detectBtn.disabled = false;
+                detectBtn.textContent = '检测';
+                
+                // 隐藏之前的结果和错误
+                result.style.display = 'none';
+                errorBox.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function uploadAndDetect() {
+            if (!selectedFile) {
+                showError('请先选择图片');
+                return;
+            }
+            
+            // 显示加载中
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            errorBox.style.display = 'none';
+            detectBtn.disabled = true;
+            detectBtn.textContent = '检测中...';
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            // 使用Fetch API发送请求（不跳转页面）
+            fetch('/api/check', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayResult(data);
+            })
+            .catch(error => {
+                showError('上传失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.style.display = 'none';
+                detectBtn.disabled = false;
+                detectBtn.textContent = '检测';
+            });
+        }
+        
+        function displayResult(data) {
+            // 格式化JSON
+            resultJson.textContent = JSON.stringify(data, null, 2);
+            
+            // 设置状态徽章
+            if (data.success) {
+                if (data.hazard_detected) {
+                    statusBadge.textContent = '隐患 ❌';
+                    statusBadge.className = 'status hazard';
+                } else {
+                    statusBadge.textContent = '正常 ✅';
+                    statusBadge.className = 'status normal';
+                }
+            } else {
+                statusBadge.textContent = '失败 ⚠️';
+                statusBadge.className = 'status hazard';
+            }
+            
+            // 显示结果区域
+            result.style.display = 'block';
+            result.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorBox.style.display = 'block';
+            errorBox.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 测试功能
+        function testHealth() {
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    alert('健康检查: ' + JSON.stringify(data, null, 2));
+                })
+                .catch(error => {
+                    alert('健康检查失败: ' + error.message);
+                });
+        }
+        
+        function testAPI() {
+            // 创建一个模拟文件进行测试
+            const blob = new Blob(['test'], { type: 'text/plain' });
+            const testFile = new File([blob], 'test.txt', { type: 'text/plain' });
+            
+            selectedFile = testFile;
+            uploadAndDetect();
+        }
+        
+        // 页面加载完成后添加测试按钮
+        document.addEventListener('DOMContentLoaded', function() {
+            const testDiv = document.createElement('div');
+            testDiv.innerHTML = `
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn" onclick="testHealth()" style="background: #38b2ac;">测试健康检查</button>
+                    <button class="btn" onclick="testAPI()" style="background: #ed8936;">测试API</button>
+                </div>
+            `;
+            document.querySelector('.content').appendChild(testDiv);
+        });
+    </script>
+</body>
+</html>
