@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>隐患检测 - 简单修复版</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .box { border: 2px solid #4CAF50; padding: 20px; margin: 20px 0; }
+        pre { background: #f5f5f5; padding: 15px; }
+    </style>
+</head>
+<body>
+    <h1>隐患检测 - 简单修复版</h1>
+    <p>这个版本不会跳转页面，直接显示结果</p>
+    
+    <div class="box">
+        <h3>上传图片</h3>
+        <input type="file" id="fileInput" accept="image/*">
+        <br><br>
+        <button onclick="uploadFile()">检测</button>
+    </div>
+    
+    <div id="loading" style="display:none;">检测中...</div>
+    <div id="error" style="color:red; display:none;"></div>
+    
+    <div class="box" id="result" style="display:none;">
+        <h3>检测结果</h3>
+        <pre id="resultJson"></pre>
+    </div>
+    
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请先选择图片');
+                return;
+            }
+            
+            // 显示加载
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // 使用fetch，不会跳转页面
+            fetch('/api/check', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP错误: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('resultJson').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('result').style.display = 'block';
+            })
+            .catch(error => {
+                document.getElementById('error').textContent = '错误: ' + error.message;
+                document.getElementById('error').style.display = 'block';
+            })
+            .finally(() => {
+                document.getElementById('loading').style.display = 'none';
+            });
+        }
+        
+        // 测试按钮
+        function testAPI() {
+            // 创建测试文件
+            const blob = new Blob(['test'], { type: 'text/plain' });
+            const file = new File([blob], 'test.txt');
+            
+            const fileInput = document.getElementById('fileInput');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            uploadFile();
+        }
+    </script>
+    
+    <div style="margin-top: 30px;">
+        <button onclick="testAPI()">测试API</button>
+        <button onclick="fetch('/health').then(r => r.json()).then(d => alert(JSON.stringify(d)))">健康检查</button>
+    </div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>隐患检测算法工作流程可视化</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .step { border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .step-header { display: flex; align-items: center; margin-bottom: 10px; }
+        .step-number { background: #4CAF50; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; }
+        .visualization { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; font-family: monospace; }
+        .status-completed { color: #4CAF50; font-weight: bold; }
+        .status-pending { color: #ff9800; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 隐患检测算法工作流程可视化</h1>
+        
+        <div class="step">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <h3>目标检测 (YOLOv8)</h3>
+            </div>
+            <p><strong>输入:</strong> 原始图片</p>
+            <p><strong>输出:</strong> 灭火器边界框 [x1, y1, x2, y2]</p>
+            <div class="visualization">
+                ┌─────────────────────┐<br>
+                │     灭火器区域       │<br>
+                │    [红色矩形框]      │<br>
+                └─────────────────────┘
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <h3>压力表定位 (霍夫圆检测)</h3>
+            </div>
+            <p><strong>输入:</strong> 灭火器区域</p>
+            <p><strong>输出:</strong> 圆心坐标, 半径</p>
+            <div class="visualization">
+                &nbsp;&nbsp;&nbsp;○───── 压力表<br>
+                &nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;\<br>
+                &nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                /&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                [蓝色圆形]
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <h3>指针检测 (霍夫直线检测)</h3>
+            </div>
+            <p><strong>输入:</strong> 压力表区域</p>
+            <p><strong>输出:</strong> 指针角度 (0-360°)</p>
+            <div class="visualization">
+                &nbsp;&nbsp;&nbsp;○──→ 指针方向<br>
+                &nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;\<br>
+                &nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                /&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                [绿色直线]
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <h3>区域判断 (规则引擎)</h3>
+            </div>
+            <p><strong>规则:</strong></p>
+            <ul>
+                <li>绿区(0-120°): 正常 ✅</li>
+                <li>黄区(120-240°): 警告 ⚠️</li>
+                <li>红区(240-360°): 隐患 ❌</li>
+            </ul>
+            <div class="visualization">
+                绿区 ███ 黄区 ███ 红区 ███
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <h3>结果输出 (JSON格式)</h3>
+            </div>
+            <p><strong>输出示例:</strong></p>
+            <div class="visualization">
+                {<br>
+                &nbsp;&nbsp;"success": true,<br>
+                &nbsp;&nbsp;"hazard_detected": false,<br>
+                &nbsp;&nbsp;"confidence": 0.92,<br>
+                &nbsp;&nbsp;"hazard_name": "灭火器压力表正常"<br>
+                }
+            </div>
+        </div>
+        
+        <h2>📊 验证状态</h2>
+        <p><span class="status-completed">✅ 已完成:</span> API接口、Web界面、Docker配置、技术链路</p>
+        <p><span class="status-pending">⏳ 待验证:</span> 真实算法准确率、性能测试、OpenClaw集成</p>
+        
+        <h2>🚀 下一步</h2>
+        <p>1. 在本地环境安装依赖并运行完整版本</p>
+        <p>2. 收集真实测试图片验证准确率</p>
+        <p>3. 根据测试结果优化算法参数</p>
+    </div>
+</body>
+</html>

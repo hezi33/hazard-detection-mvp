@@ -1,0 +1,124 @@
+{
+  "algorithm_name": "Fire Extinguisher Pressure Gauge Detection",
+  "version": "1.0.0",
+  "workflow_steps": [
+    {
+      "step": 1,
+      "name": "Object Detection",
+      "algorithm": "YOLOv8",
+      "input": "Raw image",
+      "output": "Fire extinguisher bounding box",
+      "visualization": "Red rectangle",
+      "parameters": {
+        "model": "yolov8n.pt",
+        "confidence_threshold": 0.5,
+        "input_size": [
+          640,
+          640
+        ]
+      }
+    },
+    {
+      "step": 2,
+      "name": "Gauge Localization",
+      "algorithm": "Hough Circle Transform",
+      "input": "Fire extinguisher ROI",
+      "output": "Gauge center and radius",
+      "visualization": "Blue circle",
+      "parameters": {
+        "dp": 1,
+        "minDist": 50,
+        "param1": 50,
+        "param2": 30,
+        "minRadius": 10,
+        "maxRadius": 100
+      }
+    },
+    {
+      "step": 3,
+      "name": "Pointer Detection",
+      "algorithm": "Hough Line Transform",
+      "input": "Gauge region",
+      "output": "Pointer angle (0-360°)",
+      "visualization": "Green line",
+      "parameters": {
+        "rho": 1,
+        "theta": "np.pi/180",
+        "threshold": 20,
+        "minLineLength": "radius/2",
+        "maxLineGap": 10
+      }
+    },
+    {
+      "step": 4,
+      "name": "Zone Judgment",
+      "algorithm": "Rule-based classification",
+      "input": "Pointer angle",
+      "output": "Hazard detection result",
+      "visualization": "Colored zones (green/yellow/red)",
+      "rules": [
+        {
+          "zone": "green",
+          "range": [
+            0,
+            120
+          ],
+          "status": "正常"
+        },
+        {
+          "zone": "yellow",
+          "range": [
+            120,
+            240
+          ],
+          "status": "警告"
+        },
+        {
+          "zone": "red",
+          "range": [
+            240,
+            360
+          ],
+          "status": "隐患"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "name": "Result Output",
+      "algorithm": "JSON serialization",
+      "input": "All detection results",
+      "output": "Structured JSON response",
+      "visualization": "Formatted JSON display",
+      "fields": [
+        "success",
+        "hazard_detected",
+        "confidence",
+        "hazard_name",
+        "reasoning",
+        "evidence"
+      ]
+    }
+  ],
+  "performance_targets": {
+    "accuracy": ">80%",
+    "processing_time": "<300ms",
+    "memory_usage": "~500MB",
+    "concurrent_requests": "1 (可扩展)"
+  },
+  "verification_status": {
+    "completed": [
+      "API interface format",
+      "Web upload interface",
+      "JSON output structure",
+      "Docker containerization",
+      "Technical workflow"
+    ],
+    "pending": [
+      "Real image accuracy",
+      "Lighting condition adaptation",
+      "Angle variation handling",
+      "OpenClaw integration"
+    ]
+  }
+}

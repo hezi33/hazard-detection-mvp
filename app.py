@@ -40,14 +40,19 @@ except ImportError:
 @app.get("/", response_class=HTMLResponse)
 async def home():
     """首页 - 上传页面"""
-    # 使用修复后的HTML
+    # 使用简单修复版HTML（不会跳转）
     try:
-        with open("templates/fixed_index.html", "r", encoding="utf-8") as f:
+        with open("templates/fix_simple.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        # 如果修复文件不存在，使用原始文件
-        with open("templates/index.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        # 如果简单修复文件不存在，使用fixed版本
+        try:
+            with open("templates/fixed_index.html", "r", encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+        except FileNotFoundError:
+            # 最后使用原始版本
+            with open("templates/index.html", "r", encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
 
 @app.post("/api/check")
 async def check_fire_extinguisher(file: UploadFile = File(...)):
@@ -139,8 +144,20 @@ async def test_endpoint():
     }
 
 if __name__ == "__main__":
+    import sys
+    
+    # 获取端口参数
+    port = 8000
+    if "--port" in sys.argv:
+        try:
+            port_index = sys.argv.index("--port")
+            port = int(sys.argv[port_index + 1])
+        except:
+            pass
+    
     print("🚀 启动隐患检测MVP服务...")
-    print("📡 访问地址: http://localhost:8000")
-    print("🔧 API端点: http://localhost:8000/api/check")
-    print("💚 健康检查: http://localhost:8000/health")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    print(f"📡 访问地址: http://localhost:{port}")
+    print(f"🔧 API端点: http://localhost:{port}/api/check")
+    print(f"💚 健康检查: http://localhost:{port}/health")
+    print("⚠️  PyTorch警告信息可忽略，不影响功能")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
