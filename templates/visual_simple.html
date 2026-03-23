@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法可视化演示 - 简化版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #4CAF50;
+            padding: 60px 40px;
+            text-align: center;
+            margin: 30px 0;
+            background: #f9f9f9;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            background: #e8f5e9;
+            border-color: #45a049;
+        }
+        
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .upload-hint {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #45a049;
+        }
+        
+        .btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .image-container {
+            display: flex;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .image-box {
+            flex: 1;
+            border: 2px solid #ddd;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        
+        .result-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .status-box {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 算法可视化演示</h1>
+            <p>基于工作正常的文件上传逻辑</p>
+        </div>
+        
+        <div class="content">
+            <h2>上传图片测试</h2>
+            <p>选择灭火器压力表图片，查看算法可视化结果。</p>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">⬆️</div>
+                <div class="upload-text">点击选择图片或拖拽到此处</div>
+                <div class="upload-hint">支持 JPG、PNG 格式</div>
+            </div>
+            
+            <div style="text-align: center;">
+                <input type="file" id="fileInput" class="file-input" accept="image/*">
+                <button class="btn" onclick="document.getElementById('fileInput').click()">选择图片</button>
+                <button class="btn" id="detectBtn" disabled>开始检测</button>
+            </div>
+            
+            <div class="status-box" id="errorBox" style="display: none;">
+                <strong>错误:</strong> <span id="errorMessage"></span>
+            </div>
+            
+            <div class="status-box success" id="successBox" style="display: none;">
+                <strong>成功:</strong> <span id="successMessage"></span>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div style="font-size: 24px;">⏳</div>
+                <p>正在检测中，请稍候...</p>
+            </div>
+            
+            <div class="image-container">
+                <div class="image-box">
+                    <h3>原始图片</h3>
+                    <img id="originalImage" class="image-preview" src="" alt="原始图片">
+                </div>
+                <div class="image-box">
+                    <h3>算法标注</h3>
+                    <img id="annotatedImage" class="image-preview" src="" alt="标注图片">
+                </div>
+            </div>
+            
+            <div class="result-box" id="resultsSection">
+                <h2>检测结果</h2>
+                <div id="resultContent">
+                    <!-- 结果将动态显示在这里 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 基于工作正常的逻辑
+        let selectedFile = null;
+        let originalImageData = null;
+        
+        // DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const detectBtn = document.getElementById('detectBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const loading = document.getElementById('loading');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
+        const successBox = document.getElementById('successBox');
+        const successMessage = document.getElementById('successMessage');
+        const originalImage = document.getElementById('originalImage');
+        const annotatedImage = document.getElementById('annotatedImage');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultContent = document.getElementById('resultContent');
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('简化版可视化页面加载完成');
+            
+            // 文件选择事件 - 使用可靠的方式
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 上传区域点击事件
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // 检测按钮点击事件
+            detectBtn.addEventListener('click', processImage);
+        });
+        
+        // 处理文件选择 - 简化可靠版本
+        function handleFileSelect(event) {
+            console.log('文件选择事件触发');
+            
+            const files = event.target.files;
+            if (!files || files.length === 0) {
+                console.log('没有选择文件');
+                return;
+            }
+            
+            const file = files[0];
+            console.log('选择文件:', file.name, file.type, file.size);
+            
+            // 验证文件类型
+            if (!file.type.match('image.*')) {
+                showError('请选择图片文件（JPG、PNG）');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // 预览图片
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                console.log('FileReader读取成功');
+                originalImageData = e.target.result;
+                
+                // 显示原始图片
+                originalImage.src = originalImageData;
+                
+                // 图片加载完成后启用按钮
+                originalImage.onload = function() {
+                    console.log('图片加载完成');
+                    detectBtn.disabled = false;
+                    detectBtn.textContent = '开始检测';
+                    
+                    // 隐藏之前的结果
+                    resultsSection.style.display = 'none';
+                    errorBox.style.display = 'none';
+                    
+                    // 显示成功消息
+                    showSuccess('图片已选择，点击"开始检测"查看算法可视化');
+                };
+                
+                originalImage.onerror = function() {
+                    console.error('图片加载失败');
+                    showError('图片加载失败，请检查文件格式');
+                };
+            };
+            
+            reader.onerror = function(e) {
+                console.error('FileReader错误:', e.target.error);
+                showError('文件读取失败: ' + e.target.error.message);
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        // 处理图片检测
+        function processImage() {
+            console.log('开始处理图片');
+            
+            if (!selectedFile) {
+                showError('请先选择图片');
+                return;
+            }
+            
+            // 显示加载
+            loading.style.display = 'block';
+            resultsSection.style.display = 'none';
+            errorBox.style.display = 'none';
+            detectBtn.disabled = true;
+            detectBtn.textContent = '检测中...';
+            
+            // 创建FormData
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            // 调用API - 使用可视化API
+            fetch('/api/check_visual', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('API响应:', data);
+                displayResults(data);
+            })
+            .catch(error => {
+                console.error('API调用失败:', error);
+                showError('检测失败: ' + error.message);
+                
+                // 失败时显示模拟结果
+                showMockResults();
+            })
+            .finally(() => {
+                loading.style.display = 'none';
+                detectBtn.disabled = false;
+                detectBtn.textContent = '重新检测';
+            });
+        }
+        
+        // 显示结果
+        function displayResults(data) {
+            const result = data.detection_result || {};
+            
+            // 显示标注图片
+            if (data.annotated_image) {
+                annotatedImage.src = data.annotated_image;
+            } else if (data.images && data.images.annotated) {
+                annotatedImage.src = data.images.annotated;
+            } else {
+                annotatedImage.src = originalImageData; // 使用原始图片作为占位
+            }
+            
+            // 构建结果HTML
+            let html = '<h3>检测结果</h3>';
+            
+            if (result.hazard_detected) {
+                html += '<p style="color: #f44336; font-weight: bold;">⚠️ 发现隐患: ' + (result.hazard_name || '灭火器压力表异常') + '</p>';
+            } else {
+                html += '<p style="color: #4CAF50; font-weight: bold;">✅ 正常: ' + (result.hazard_name || '灭火器压力表正常') + '</p>';
+            }
+            
+            if (result.confidence) {
+                html += '<p>置信度: <strong>' + Math.round(result.confidence * 100) + '%</strong></p>';
+            }
+            
+            if (result.reasoning && Array.isArray(result.reasoning)) {
+                html += '<h4>推理过程:</h4><ul>';
+                result.reasoning.forEach(reason => {
+                    html += '<li>' + reason + '</li>';
+                });
+                html += '</ul>';
+            }
+            
+            if (result.evidence) {
+                html += '<h4>检测证据:</h4><pre style="background: #fff; padding: 10px; border-radius: 5px;">' + 
+                       JSON.stringify(result.evidence, null, 2) + '</pre>';
+            }
+            
+            resultContent.innerHTML = html;
+            resultsSection.style.display = 'block';
+            
+            showSuccess('检测完成！查看下方可视化结果');
+            
+            // 滚动到结果
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 显示模拟结果（备用）
+        function showMockResults() {
+            console.log('显示模拟结果');
+            
+            const mockData = {
+                detection_result: {
+                    success: true,
+                    hazard_detected: Math.random() > 0.5,
+                    confidence: 0.85,
+                    hazard_name: '灭火器压力表状态检测',
+                    reasoning: [
+                        '模拟: 检测到灭火器区域',
+                        '模拟: 定位压力表位置',
+                        '模拟: 分析指针角度',
+                        '模拟: 判断压力区域',
+                        '注: 当前为模拟演示数据'
+                    ],
+                    evidence: {
+                        fire_extinguisher_bbox: [100, 80, 400, 300],
+                        gauge_center: [250, 180],
+                        gauge_radius: 40,
+                        pointer_angle: 210,
+                        zone: 'yellow'
+                    },
+                    mode: 'simulation'
+                }
+            };
+            
+            displayResults(mockData);
+        }
+        
+        // 显示错误
+        function showError(message) {
+            console.error('显示错误:', message);
+            errorMessage.textContent = message;
+            errorBox.style.display = 'block';
+            errorBox.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 显示成功
+        function showSuccess(message) {
+            console.log('显示成功:', message);
+            successMessage.textContent = message;
+            successBox.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

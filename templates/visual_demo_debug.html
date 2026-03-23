@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法可视化演示 - 调试版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .left-panel {
+            flex: 1;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .right-panel {
+            flex: 1;
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #4CAF50;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background: #f9f9f9;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            background: #e8f5e9;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            border: 2px solid #ccc;
+            margin: 10px 0;
+        }
+        
+        .console {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border-radius: 5px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 算法可视化演示 - 调试版</h1>
+    <p>此版本包含详细的控制台日志，用于诊断文件上传问题。</p>
+    
+    <div class="container">
+        <div class="left-panel">
+            <h2>文件上传测试</h2>
+            
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div style="font-size: 48px;">⬆️</div>
+                <div style="font-size: 18px; margin: 10px 0;">点击选择图片或拖拽到此处</div>
+                <div style="font-size: 14px; color: #666;">支持 JPG、PNG 格式</div>
+            </div>
+            
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <button onclick="document.getElementById('fileInput').click()">选择图片</button>
+                <button id="detectBtn" disabled>开始检测</button>
+                <button onclick="clearConsole()">清空控制台</button>
+            </div>
+            
+            <div id="statusArea">
+                <div id="errorBox" class="status error" style="display: none;">
+                    <strong>错误:</strong> <span id="errorMessage"></span>
+                </div>
+                <div id="successBox" class="status success" style="display: none;">
+                    <strong>成功:</strong> <span id="successMessage"></span>
+                </div>
+            </div>
+            
+            <h3>原始图片预览</h3>
+            <img id="originalImage" class="image-preview" src="" alt="原始图片预览">
+            
+            <h3>标注图片预览</h3>
+            <img id="annotatedImage" class="image-preview" src="" alt="标注图片预览">
+        </div>
+        
+        <div class="right-panel">
+            <h2>调试控制台</h2>
+            <div class="console" id="consoleOutput">
+                [控制台输出将显示在这里]
+            </div>
+            
+            <h3>DOM元素状态</h3>
+            <div id="domStatus">
+                <p>页面加载中...</p>
+            </div>
+            
+            <h3>测试功能</h3>
+            <div>
+                <button onclick="testSmallImage()">测试小图片 (1KB)</button>
+                <button onclick="testMediumImage()">测试中图片 (10KB)</button>
+                <button onclick="testLargeImage()">测试大图片 (100KB)</button>
+                <button onclick="testInvalidFile()">测试无效文件</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 重写console.log等函数，输出到页面
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+        
+        function logToPage(type, args) {
+            const consoleOutput = document.getElementById('consoleOutput');
+            if (!consoleOutput) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const message = Array.from(args).map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            
+            const line = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            consoleOutput.innerHTML += line + '\n';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            
+            // 同时输出到浏览器控制台
+            originalConsole[type].apply(console, args);
+        }
+        
+        console.log = function(...args) { logToPage('log', args); };
+        console.error = function(...args) { logToPage('error', args); };
+        console.warn = function(...args) { logToPage('warn', args); };
+        console.info = function(...args) { logToPage('info', args); };
+        
+        // 初始日志
+        console.log('🔍 调试页面已加载');
+        console.log('浏览器:', navigator.userAgent);
+        console.log('页面URL:', window.location.href);
+        
+        function clearConsole() {
+            const consoleOutput = document.getElementById('consoleOutput');
+            if (consoleOutput) {
+                consoleOutput.innerHTML = '[控制台已清空]\n';
+            }
+        }
+        
+        function updateDOMStatus() {
+            const domStatus = document.getElementById('domStatus');
+            if (!domStatus) return;
+            
+            const elements = [
+                'fileInput', 'uploadArea', 'originalImage', 
+                'detectBtn', 'errorBox', 'successBox'
+            ];
+            
+            let html = '<ul>';
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                html += `<li>${id}: ${element ? '✅ 找到' : '❌ 未找到'}</li>`;
+            });
+            html += '</ul>';
+            
+            domStatus.innerHTML = html;
+        }
+        
+        // 测试函数
+        function testSmallImage() {
+            console.log('测试: 创建1KB测试图片');
+            // 创建一个小图片进行测试
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(0, 0, 100, 100);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '20px Arial';
+            ctx.fillText('测试', 30, 55);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+            simulateFileUpload(dataUrl, 'test_small.jpg');
+        }
+        
+        function simulateFileUpload(dataUrl, filename) {
+            console.log('模拟文件上传:', filename);
+            
+            // 创建模拟文件对象
+            const byteString = atob(dataUrl.split(',')[1]);
+            const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            const blob = new Blob([ab], {type: mimeString});
+            const file = new File([blob], filename, {type: mimeString});
+            
+            // 模拟文件选择事件
+            const event = {
+                target: {
+                    files: [file]
+                }
+            };
+            
+            handleFileSelect(event);
+        }
+        
+        // 页面加载完成后更新状态
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDOMStatus();
+            console.log('✅ DOMContentLoaded事件触发');
+        });
+        
+        // 每5秒更新一次DOM状态
+        setInterval(updateDOMStatus, 5000);
+    </script>
+    
+    <!-- 引入调试版JS -->
+    <script src="/static/visual_demo_debug.js"></script>
+</body>
+</html>

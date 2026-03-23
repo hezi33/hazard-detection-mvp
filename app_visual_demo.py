@@ -325,6 +325,24 @@ async def test_endpoint():
         "ready": True
     }
 
+@app.get("/minimal_test")
+async def minimal_test():
+    """最小化测试页面"""
+    try:
+        with open("templates/minimal_test.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>最小化测试页面未找到</h1>")
+
+@app.get("/simple")
+async def visual_simple():
+    """简化版可视化页面（基于工作正常的逻辑）"""
+    try:
+        with open("templates/visual_simple.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>简化版可视化页面未找到</h1>")
+
 if __name__ == "__main__":
     import sys
     

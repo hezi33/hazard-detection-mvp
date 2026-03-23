@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>简单文件上传测试</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        #preview { max-width: 400px; margin-top: 20px; border: 2px solid #ccc; }
+        .status { margin: 10px 0; padding: 10px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>简单文件上传测试</h1>
+    
+    <input type="file" id="fileInput" accept="image/*">
+    <button onclick="testFileRead()">测试文件读取</button>
+    
+    <div id="status"></div>
+    <img id="preview" src="" alt="预览">
+    
+    <script>
+        function testFileRead() {
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('status');
+            const previewImg = document.getElementById('preview');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showStatus('请先选择文件', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // 测试1: 检查文件信息
+            showStatus(`文件信息: ${file.name}, 类型: ${file.type}, 大小: ${file.size} bytes`, 'success');
+            
+            // 测试2: 使用FileReader读取
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                showStatus('文件读取成功！图片已显示', 'success');
+                console.log('FileReader成功:', e.target.result.substring(0, 50) + '...');
+            };
+            
+            reader.onerror = function(e) {
+                showStatus('文件读取失败: ' + e.target.error, 'error');
+                console.error('FileReader错误:', e.target.error);
+            };
+            
+            reader.onabort = function(e) {
+                showStatus('文件读取被取消', 'error');
+            };
+            
+            // 开始读取
+            reader.readAsDataURL(file);
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+        }
+        
+        // 自动测试
+        document.addEventListener('DOMContentLoaded', function() {
+            showStatus('页面加载完成，请选择图片文件测试', 'success');
+            console.log('简单测试页面已加载');
+        });
+    </script>
+</body>
+</html>
