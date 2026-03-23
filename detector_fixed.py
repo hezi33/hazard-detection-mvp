@@ -4,7 +4,17 @@ import logging
 import os
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# 修复PyTorch 2.6安全限制
+try:
+    import torch
+    import ultralytics
+    # 添加安全全局变量以绕过PyTorch 2.6限制
+    torch.serialization.add_safe_globals([ultralytics.nn.tasks.DetectionModel])
+    logger = logging.getLogger(__name__)
+except ImportError as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"PyTorch/ultralytics导入失败: {e}")
 
 class FireExtinguisherDetector:
     def __init__(self, use_simulation=True):
