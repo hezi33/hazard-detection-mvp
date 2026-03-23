@@ -106,17 +106,38 @@ except ImportError as e:
     annotator = MockAnnotator()
 
 def convert_numpy_types(obj):
-    """递归转换NumPy类型为Python原生类型"""
+    """递归转换NumPy类型为Python原生类型（增强版）"""
+    import numpy as np
+    
+    # 处理字典
     if isinstance(obj, dict):
         return {key: convert_numpy_types(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_numpy_types(item) for item in obj]
+    
+    # 处理列表、元组、集合
+    elif isinstance(obj, (list, tuple, set)):
+        return type(obj)([convert_numpy_types(item) for item in obj])
+    
+    # 处理NumPy标量类型
+    elif isinstance(obj, np.generic):
+        return obj.item()  # 转换为Python标量
+    
+    # 处理NumPy整数类型
     elif isinstance(obj, np.integer):
         return int(obj)
+    
+    # 处理NumPy浮点类型
     elif isinstance(obj, np.floating):
         return float(obj)
+    
+    # 处理NumPy布尔类型
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    
+    # 处理NumPy数组
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
+    
+    # 其他类型直接返回
     else:
         return obj
 
