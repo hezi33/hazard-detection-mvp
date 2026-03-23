@@ -1,0 +1,64 @@
+{
+  "name": "最小测试数据集",
+  "description": "10张测试图片，5张有隐患，5张无隐患",
+  "created_at": "2026-03-21",
+  "test_cases": [
+    {
+      "image_url": "https://example.com/images/restaurant_with_gas_cylinder.jpg",
+      "description": "餐厅中有气瓶 - 应有隐患",
+      "expected": "有隐患",
+      "hazard_type": "gas_cylinder_in_restaurant"
+    },
+    {
+      "image_url": "https://example.com/images/no_qr_code.jpg",
+      "description": "无二维码 - 应有隐患",
+      "expected": "有隐患",
+      "hazard_type": "no_inspection_qr"
+    },
+    {
+      "image_url": "https://example.com/images/expired_inspection.jpg",
+      "description": "安检超期 - 应有隐患",
+      "expected": "有隐患",
+      "hazard_type": "inspection_expired"
+    },
+    {
+      "image_url": "https://example.com/images/high_alarm.jpg",
+      "description": "报警器安装过高 - 应有隐患",
+      "expected": "有隐患",
+      "points": [[100, 100], [100, 150]],
+      "hazard_type": "alarm_height_abnormal"
+    },
+    {
+      "image_url": "https://example.com/images/broken_exit_sign.jpg",
+      "description": "损坏的疏散标志 - 应有隐患",
+      "expected": "有隐患",
+      "hazard_type": "exit_sign_abnormal"
+    },
+    {
+      "image_url": "https://example.com/images/restaurant_no_gas.jpg",
+      "description": "餐厅无气瓶 - 应无隐患",
+      "expected": "无隐患"
+    },
+    {
+      "image_url": "https://example.com/images/valid_qr_code.jpg",
+      "description": "有效二维码 - 应无隐患",
+      "expected": "无隐患"
+    },
+    {
+      "image_url": "https://example.com/images/recent_inspection.jpg",
+      "description": "近期安检 - 应无隐患",
+      "expected": "无隐患"
+    },
+    {
+      "image_url": "https://example.com/images/normal_alarm_height.jpg",
+      "description": "正常高度的报警器 - 应无隐患",
+      "expected": "无隐患",
+      "points": [[100, 100], [100, 120]]
+    },
+    {
+      "image_url": "https://example.com/images/good_exit_sign.jpg",
+      "description": "完好的疏散标志 - 应无隐患",
+      "expected": "无隐患"
+    }
+  ]
+}

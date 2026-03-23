@@ -1,0 +1,26 @@
+# Ignore skill submodules
+skills/find-skills/
+skills/playwright/
+skills/self-improving-agent/
+skills/skill-creator/
+skills/tavily-search/
+
+# Ignore OpenClaw configuration and cache
+.openclaw/cache/
+.openclaw/logs/
+.openclaw/tmp/
+
+# Ignore node modules
+node_modules/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore temporary files
+*.tmp
+*.log
