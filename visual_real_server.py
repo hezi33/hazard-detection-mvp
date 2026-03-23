@@ -105,6 +105,21 @@ except ImportError as e:
     detector = MockDetector()
     annotator = MockAnnotator()
 
+def convert_numpy_types(obj):
+    """递归转换NumPy类型为Python原生类型"""
+    if isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
 @app.get("/", response_class=HTMLResponse)
 async def home():
     """真实算法可视化首页"""
@@ -146,6 +161,9 @@ async def check_visual(file: UploadFile = File(...)):
         # 使用真实算法检测
         detection_result = detector.detect(original_image)
         logger.info(f"检测结果: {detection_result.get('hazard_name', '未知')}")
+        
+        # 转换NumPy类型为Python原生类型（修复JSON序列化问题）
+        detection_result = convert_numpy_types(detection_result)
         
         # 可视化标注
         annotated_image = annotator.annotate_image(original_image.copy(), detection_result)
