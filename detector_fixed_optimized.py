@@ -1,49 +1,25 @@
 #!/usr/bin/env python3
 """
-优化版真实算法可视化服务器 - 添加红绿黄区域识别和智能指针判断
-基于用户反馈优化：需要识别红绿黄区域并判断指针位置
+优化版灭火器压力表检测器
+添加红绿黄区域检测和智能指针判断
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-import uvicorn
 import cv2
 import numpy as np
 import logging
-import base64
 import math
-from io import BytesIO
+from pathlib import Path
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 创建应用
-app = FastAPI(
-    title="优化版算法可视化服务器",
-    version="2.0.0",
-    description="添加红绿黄区域识别和智能指针判断的灭火器压力表检测算法"
-)
-
-# 创建目录
-Path("static").mkdir(exist_ok=True)
-Path("uploads").mkdir(exist_ok=True)
-Path("visual_results").mkdir(exist_ok=True)
-
-# 挂载静态文件
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-class OptimizedFireExtinguisherDetector:
-    """优化版灭火器压力表检测器 - 添加颜色区域检测"""
-    
+class FireExtinguisherDetectorOptimized:
     def __init__(self, use_simulation=True, use_color_detection=True):
+        """初始化优化版检测器"""
+        self.model = None
         self.use_simulation = use_simulation
         self.use_color_detection = use_color_detection
-        self.model = None
         
-        # 颜色范围定义 (HSV)
+        # 颜色范围定义 (HSV格式)
         self.color_ranges = {
             'red': [
                 (np.array([0, 100, 100]), np.array([10, 255, 255])),
@@ -54,6 +30,11 @@ class OptimizedFireExtinguisherDetector:
             ],
             'yellow': [
                 (np.array([15, 50, 50]), np.array([35, 255, 255]))
+            ],
+            'pointer': [  # 指针颜色（红色或黑色）
+                (np.array([0, 50, 50]), np.array([10, 255, 255])),
+                (np.array([160, 50, 50]), np.array([180, 255, 255])),
+                (np.array([0, 0, 0]), np.array([180, 100, 100]))
             ]
         }
         
@@ -73,10 +54,6 @@ class OptimizedFireExtinguisherDetector:
         """初始化YOLO模型"""
         try:
             from ultralytics import YOLO
-            import torch
-            
-            # 修复PyTorch 2.6安全限制
-            torch.serialization.add_safe_globals([ultralytics.nn.tasks.DetectionModel])
             
             cache_dir = Path.home() / ".cache" / "ultralytics" / "hub"
             model_path = cache_dir / "yolov8n.pt"
@@ -153,7 +130,7 @@ class OptimizedFireExtinguisherDetector:
             }]
     
     def find_gauge_region(self, image, bbox):
-        """在灭火器边界框内找压力表区域"""
+        """在灭火器边界框内找压力表区域（改进版）"""
         x1, y1, x2, y2 = bbox
         roi = image[y1:y2, x1:x2]
         
@@ -263,8 +240,8 @@ class OptimizedFireExtinguisherDetector:
             logger.warning(f"颜色区域检测失败: {e}")
             return {}
     
-    def detect_pointer(self, image, gauge_info):
-        """检测指针"""
+    def detect_pointer_optimized(self, image, gauge_info):
+        """优化版指针检测"""
         center_x, center_y = gauge_info['center']
         radius = gauge_info['radius']
         
@@ -279,25 +256,13 @@ class OptimizedFireExtinguisherDetector:
             return None
         
         try:
-            # 方法1: 颜色检测（指针通常是红色或黑色）
+            # 方法1: 颜色检测
             hsv_roi = cv2.cvtColor(gauge_roi, cv2.COLOR_BGR2HSV)
             
-            # 红色指针
-            lower_red1 = np.array([0, 50, 50])
-            upper_red1 = np.array([10, 255, 255])
-            lower_red2 = np.array([160, 50, 50])
-            upper_red2 = np.array([180, 255, 255])
-            
-            red_mask1 = cv2.inRange(hsv_roi, lower_red1, upper_red1)
-            red_mask2 = cv2.inRange(hsv_roi, lower_red2, upper_red2)
-            red_mask = cv2.bitwise_or(red_mask1, red_mask2)
-            
-            # 黑色指针
-            lower_black = np.array([0, 0, 0])
-            upper_black = np.array([180, 100, 100])
-            black_mask = cv2.inRange(hsv_roi, lower_black, upper_black)
-            
-            pointer_mask = cv2.bitwise_or(red_mask, black_mask)
+            pointer_mask = np.zeros(hsv_roi.shape[:2], dtype=np.uint8)
+            for lower, upper in self.color_ranges['pointer']:
+                color_mask = cv2.inRange(hsv_roi, lower, upper)
+                pointer_mask = cv2.bitwise_or(pointer_mask, color_mask)
             
             kernel = np.ones((3, 3), np.uint8)
             pointer_mask = cv2.morphologyEx(pointer_mask, cv2.MORPH_CLOSE, kernel)
@@ -391,49 +356,43 @@ class OptimizedFireExtinguisherDetector:
             'confidence': 0.5
         }
     
-    def judge_zone(self, angle, color_zones=None):
-        """判断区域（优化版：结合颜色信息）"""
+    def judge_zone_with_color(self, pointer_angle, color_zones):
+        """结合颜色信息判断区域"""
+        if not color_zones or not self.use_color_detection:
+            return self.judge_zone_by_angle(pointer_angle)
+        
+        min_angle_diff = float('inf')
+        closest_zone = "green"
+        
+        for zone_name, zone_info in color_zones.items():
+            zone_angle = zone_info['angle']
+            angle_diff = min(abs(pointer_angle - zone_angle),
+                           360 - abs(pointer_angle - zone_angle))
+            
+            if angle_diff < min_angle_diff:
+                min_angle_diff = angle_diff
+                closest_zone = zone_name
+        
+        if closest_zone == "green":
+            confidence = max(0.9, 1.0 - min_angle_diff/60.0)
+            return "green", confidence, "正常（无隐患）"
+        elif closest_zone == "yellow":
+            confidence = max(0.8, 1.0 - min_angle_diff/60.0)
+            return "yellow", confidence, "警告（潜在隐患）"
+        else:
+            confidence = max(0.7, 1.0 - min_angle_diff/60.0)
+            return "red", confidence, "隐患（需要处理）"
+    
+    def judge_zone_by_angle(self, angle):
+        """根据角度判断区域"""
         angle = angle % 360
         
-        # 如果有颜色区域信息，优先使用
-        if color_zones and self.use_color_detection:
-            min_angle_diff = float('inf')
-            closest_zone = "green"
-            
-            for zone_name, zone_info in color_zones.items():
-                zone_angle = zone_info['angle']
-                angle_diff = min(abs(angle - zone_angle),
-                               360 - abs(angle - zone_angle))
-                
-                if angle_diff < min_angle_diff:
-                    min_angle_diff = angle_diff
-                    closest_zone = zone_name
-            
-            zone = closest_zone
-            confidence = max(0.7, 1.0 - min_angle_diff/60.0)
-            judgment_method = "color_based"
+        if 0 <= angle < 120:
+            return "green", 0.9, "正常（无隐患）"
+        elif 120 <= angle < 240:
+            return "yellow", 0.8, "警告（潜在隐患）"
         else:
-            # 回退到角度判断
-            if 0 <= angle < 120:
-                zone = "green"
-                confidence = 0.9
-            elif 120 <= angle < 240:
-                zone = "yellow"
-                confidence = 0.8
-            else:
-                zone = "red"
-                confidence = 0.7
-            judgment_method = "angle_based"
-        
-        # 根据区域判断状态
-        if zone == "green":
-            status = "正常（无隐患）"
-        elif zone == "yellow":
-            status = "警告（潜在隐患）"
-        else:
-            status = "隐患（需要处理）"
-        
-        return zone, confidence, status, judgment_method
+            return "red", 0.7, "隐患（需要处理）"
     
     def detect(self, image):
         """主检测函数（优化版）"""
@@ -471,7 +430,7 @@ class OptimizedFireExtinguisherDetector:
             color_zones = self.detect_color_zones(image, gauge_info)
             
             # 4. 检测指针
-            pointer_info = self.detect_pointer(image, gauge_info)
+            pointer_info = self.detect_pointer_optimized(image, gauge_info)
             
             if pointer_info is None:
                 return {
@@ -485,8 +444,13 @@ class OptimizedFireExtinguisherDetector:
             pointer_detected = pointer_info.get('detected', False)
             
             # 5. 判断区域
-            zone, confidence, status, judgment_method = self.judge_zone(
-                pointer_info['angle'], color_zones)
+            if color_zones and self.use_color_detection:
+                zone, confidence, status = self.judge_zone_with_color(
+                    pointer_info['angle'], color_zones)
+                judgment_method = "color_based"
+            else:
+                zone, confidence, status = self.judge_zone_by_angle(pointer_info['angle'])
+                judgment_method = "angle_based"
             
             # 结合指针检测置信度
             confidence = confidence * pointer_info.get('confidence', 0.5)
@@ -514,7 +478,12 @@ class OptimizedFireExtinguisherDetector:
                     "zone": zone,
                     "status": status,
                     "judgment_method": judgment_method,
-                    "zone_angles": self.zone_angles
+                    "zone_angles": self.zone_angles,
+                    "zone_colors": {
+                        'green': (0, 255, 0),
+                        'yellow': (0, 255, 255),
+                        'red': (0, 0, 255)
+                    }
                 },
                 "mode": "simulation" if (is_simulated or not gauge_detected or not pointer_detected) else "real"
             }
@@ -566,337 +535,25 @@ class OptimizedFireExtinguisherDetector:
             }
 
 
-class OptimizedVisualAnnotator:
-    """优化版可视化标注器 - 添加红绿黄区域绘制"""
-    
-    def __init__(self):
-        # 区域颜色（带透明度）
-        self.zone_colors = {
-            'green': (0, 255, 0, 50),     # 绿色，半透明
-            'yellow': (0, 255, 255, 50),  # 黄色，半透明
-            'red': (0, 0, 255, 50)        # 红色，半透明
-        }
-    
-    def draw_zones(self, image, center, radius, zone_angles):
-        """绘制红绿黄区域"""
-        annotated = image.copy()
-        
-        # 创建透明层
-        overlay = annotated.copy()
-        
-        # 绘制每个区域
-        for zone_name, (start_angle, end_angle) in zone_angles.items():
-            if zone_name in self.zone_colors:
-                color = self.zone_colors[zone_name]
-                
-                # 绘制扇形区域
-                cv2.ellipse(overlay, center, (radius, radius), 0, 
-                           start_angle, end_angle, color[:3], -1)
-        
-        # 合并透明层
-        alpha = 0.3
-        cv2.addWeighted(overlay, alpha, annotated, 1 - alpha, 0, annotated)
-        
-        # 绘制区域边界线
-        for zone_name, (start_angle, end_angle) in zone_angles.items():
-            if zone_name in self.zone_colors:
-                color = self.zone_colors[zone_name]
-                
-                # 绘制边界线
-                start_rad = math.radians(start_angle)
-                end_rad = math.radians(end_angle)
-                
-                start_x = int(center[0] + radius * math.cos(start_rad))
-                start_y = int(center[1] + radius * math.sin(start_rad))
-                
-                end_x = int(center[0] + radius * math.cos(end_rad))
-                end_y = int(center[1] + radius * math.sin(end_rad))
-                
-                cv2.line(annotated, center, (start_x, start_y), color[:3], 2)
-                cv2.line(annotated, center, (end_x, end_y), color[:3], 2)
-                
-                # 添加区域标签
-                mid_angle = (start_angle + end_angle) / 2
-                label_radius = radius * 0.7
-                label_x = int(center[0] + label_radius * math.cos(math.radians(mid_angle)))
-                label_y = int(center[1] + label_radius * math.sin(math.radians(mid_angle)))
-                
-                cv2.putText(annotated, zone_name.upper(), 
-                           (label_x - 20, label_y),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, color[:3], 2)
-        
-        return annotated
-    
-    def annotate_image(self, image, detection_result):
-        """标注图片（优化版：添加区域绘制）"""
-        annotated = image.copy()
-        height, width = image.shape[:2]
-        
-        evidence = detection_result.get("evidence", {})
-        
-        # 获取压力表信息
-        center = evidence.get("gauge_center", [width//2, height//2])
-        radius = evidence.get("gauge_radius", min(width, height)//4)
-        
-        # 1. 绘制红绿黄区域
-        zone_angles = evidence.get("zone_angles", {
-            'green': (0, 120),
-            'yellow': (120, 240),
-            'red': (240, 360)
-        })
-        
-        annotated = self.draw_zones(annotated, center, radius, zone_angles)
-        
-        # 2. 红色矩形框 - 灭火器
-        bbox = evidence.get("fire_extinguisher_bbox", [50, 50, width-50, height-50])
-        cv2.rectangle(annotated, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 0, 255), 3)
-        
-        # 3. 蓝色圆形 - 压力表
-        cv2.circle(annotated, (center[0], center[1]), radius, (255, 0, 0), 3)
-        cv2.circle(annotated, (center[0], center[1]), 5, (255, 0, 0), -1)
-        
-        # 4. 绿色直线 - 指针
-        angle = evidence.get("pointer_angle", 150)
-        length = radius * 0.8
-        end_x = int(center[0] + length * np.cos(np.radians(angle)))
-        end_y = int(center[1] + length * np.sin(np.radians(angle)))
-        
-        cv2.line(annotated, (center[0], center[1]), (end_x, end_y), (0, 255, 0), 4)
-        cv2.circle(annotated, (end_x, end_y), 8, (0, 255, 0), -1)
-        
-        # 5. 添加状态信息
-        zone = evidence.get("zone", "green")
-        status = evidence.get("status", "正常")
-        
-        zone_color = (0, 255, 0) if zone == "green" else (0, 255, 255) if zone == "yellow" else (0, 0, 255)
-        status_text = f"状态: {status} ({zone.upper()}区)"
-        
-        cv2.putText(annotated, status_text, (20, 30),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, zone_color, 2)
-        
-        # 6. 添加角度信息
-        angle_text = f"指针角度: {angle:.1f}°"
-        cv2.putText(annotated, angle_text, (20, 60),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
-        # 7. 添加置信度
-        confidence = detection_result.get("confidence", 0.0)
-        conf_text = f"置信度: {confidence:.2f}"
-        cv2.putText(annotated, conf_text, (20, 90),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
-        # 8. 添加检测方法
-        method = evidence.get("judgment_method", "unknown")
-        method_text = f"检测方法: {method}"
-        cv2.putText(annotated, method_text, (20, 120),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        return annotated
-
-
-# 初始化优化版检测器和标注器
-detector = OptimizedFireExtinguisherDetector(
-    use_simulation=False,  # 使用真实模式
-    use_color_detection=True  # 启用颜色区域检测
-)
-annotator = OptimizedVisualAnnotator()
-
-logger.info("✅ 优化版算法组件加载成功")
-logger.info("🎯 功能: 红绿黄区域检测 + 改进指针检测 + 智能区域判断")
-
-def convert_numpy_types(obj):
-    """递归转换NumPy类型为Python原生类型"""
-    import numpy as np
-    
-    if isinstance(obj, dict):
-        return {key: convert_numpy_types(value) for key, value in obj.items()}
-    elif isinstance(obj, (list, tuple, set)):
-        return type(obj)([convert_numpy_types(item) for item in obj])
-    elif isinstance(obj, np.generic):
-        return obj.item()
-    elif isinstance(obj, np.integer):
-        return int(obj)
-    elif isinstance(obj, np.floating):
-        return float(obj)
-    elif isinstance(obj, np.bool_):
-        return bool(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    else:
-        return obj
-
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    """优化版算法可视化首页"""
-    try:
-        with open("templates/visual_simple.html", "r", encoding="utf-8") as f:
-            html = f.read()
-            # 修改标题
-            html = html.replace("算法可视化演示", "优化版算法可视化演示")
-            return HTMLResponse(content=html)
-    except FileNotFoundError:
-        # 简单回退
-        html = """
-        <!DOCTYPE html>
-        <html>
-        <head><title>优化版算法可视化</title></head>
-        <body>
-            <h1>优化版算法可视化演示</h1>
-            <p>添加红绿黄区域识别和智能指针判断的灭火器压力表检测算法</p>
-            <p><strong>🎯 优化功能:</strong></p>
-            <ul>
-                <li>✅ 红绿黄颜色区域检测</li>
-                <li>✅ 改进指针检测算法</li>
-                <li>✅ 智能区域判断（结合颜色和角度）</li>
-                <li>✅ 完整可视化标注</li>
-            </ul>
-            <p><strong>📊 区域定义:</strong> 绿区(0-120°)=正常，黄区(120-240°)=警告，红区(240-360°)=隐患</p>
-            <p><a href="/health">健康检查</a></p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(content=html)
-
-@app.post("/api/check_visual")
-async def check_visual(file: UploadFile = File(...)):
-    """优化版算法可视化检测API"""
-    try:
-        # 读取图片
-        contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        original_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        if original_image is None:
-            raise HTTPException(status_code=400, detail="无法读取图片")
-        
-        logger.info(f"处理图片: {file.filename}, 尺寸: {original_image.shape}")
-        
-        # 使用优化版算法检测
-        detection_result = detector.detect(original_image)
-        logger.info(f"检测结果: {detection_result.get('hazard_name', '未知')}")
-        
-        # 转换NumPy类型为Python原生类型
-        detection_result = convert_numpy_types(detection_result)
-        
-        # 可视化标注
-        annotated_image = annotator.annotate_image(original_image.copy(), detection_result)
-        
-        # 创建对比图
-        h1, w1 = original_image.shape[:2]
-        h2, w2 = annotated_image.shape[:2]
-        h = max(h1, h2)
-        w = w1 + w2 + 20
-        
-        comparison_image = np.zeros((h, w, 3), dtype=np.uint8)
-        comparison_image[:] = (40, 40, 40)
-        
-        # 放置原始图片
-        comparison_image[0:h1, 0:w1] = original_image
-        cv2.putText(comparison_image, "原始图片", (10, 30), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        
-        # 放置标注图片
-        comparison_image[0:h2, w1+20:w1+20+w2] = annotated_image
-        cv2.putText(comparison_image, "算法标注", (w1+30, 30), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        
-        # 添加图例
-        legend_y = h - 100
-        cv2.rectangle(comparison_image, (10, legend_y), (30, legend_y+20), (0, 0, 255), -1)
-        cv2.putText(comparison_image, "灭火器检测", (40, legend_y+15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        cv2.circle(comparison_image, (150, legend_y+10), 8, (255, 0, 0), -1)
-        cv2.putText(comparison_image, "压力表定位", (170, legend_y+15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        cv2.line(comparison_image, (280, legend_y), (320, legend_y+20), (0, 255, 0), 3)
-        cv2.putText(comparison_image, "指针方向", (330, legend_y+15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        # 添加区域图例
-        legend_y2 = h - 150
-        cv2.rectangle(comparison_image, (10, legend_y2), (30, legend_y2+20), (0, 255, 0, 50), -1)
-        cv2.putText(comparison_image, "绿区-正常", (40, legend_y2+15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        cv2.rectangle(comparison_image, (150, legend_y2), (170, legend_y2+20), (0, 255, 255, 50), -1)
-        cv2.putText(comparison_image, "黄区-警告", (180, legend_y2+15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        cv2.rectangle(comparison_image, (280, legend_y2), (300, legend_y2+20), (0, 0, 255, 50), -1)
-        cv2.putText(comparison_image, "红区-隐患", (310, legend_y2+15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        
-        # 转换为base64
-        _, buffer = cv2.imencode('.jpg', annotated_image)
-        annotated_base64 = base64.b64encode(buffer).decode('utf-8')
-        
-        _, buffer2 = cv2.imencode('.jpg', comparison_image)
-        comparison_base64 = base64.b64encode(buffer2).decode('utf-8')
-        
-        # 构建响应
-        response = {
-            "success": True,
-            "detection_result": detection_result,
-            "images": {
-                "annotated": f"data:image/jpeg;base64,{annotated_base64}",
-                "comparison": f"data:image/jpeg;base64,{comparison_base64}"
-            }
-        }
-        
-        return JSONResponse(content=response)
-        
-    except Exception as e:
-        logger.error(f"API错误: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": str(e),
-                "detection_result": {
-                    "success": False,
-                    "hazard_detected": False,
-                    "error": str(e),
-                    "mode": "error"
-                }
-            }
-        )
-
-@app.get("/health")
-async def health():
-    """健康检查端点"""
-    return {
-        "status": "healthy",
-        "service": "optimized-visual-algorithm",
-        "version": "2.0.0",
-        "algorithm": "优化版灭火器压力表检测算法",
-        "features": [
-            "红绿黄区域检测",
-            "改进指针检测",
-            "智能区域判断",
-            "完整可视化标注"
-        ],
-        "zone_definition": {
-            "green": "0-120° (正常，无隐患)",
-            "yellow": "120-240° (警告，潜在隐患)",
-            "red": "240-360° (隐患，需要处理)"
-        }
-    }
-
+# 测试代码
 if __name__ == "__main__":
-    print("🚀 启动优化版算法可视化服务器")
-    print("📡 访问: http://localhost:8010")
-    print("🔧 算法: 优化版灭火器压力表检测")
-    print("🎯 功能: 红绿黄区域检测 + 改进指针判断")
+    print("🔥 优化版灭火器压力表检测器")
+    print("=" * 60)
+    print("🎯 主要改进:")
+    print("  1. 红绿黄颜色区域检测")
+    print("  2. 改进指针检测算法")
+    print("  3. 智能区域判断（结合颜色和角度）")
+    print("  4. 详细的推理过程")
+    print()
     print("📊 区域定义:")
-    print("  - 绿色区域: 0-120° (正常，无隐患)")
-    print("  - 黄色区域: 120-240° (警告，潜在隐患)")
-    print("  - 红色区域: 240-360° (隐患，需要处理)")
-    print("\n💡 测试方法:")
-    print("  1. 访问 http://localhost:8010")
-    print("  2. 上传灭火器压力表图片")
-    print("  3. 查看区域检测和指针判断结果")
-    print("\n按 Ctrl+C 停止服务器")
-    
-    uvicorn.run(app, host="0.0.0.0", port=8010)
+    print("  - 绿色区域: 0-120° (无隐患)")
+    print("  - 黄色区域: 120-240° (潜在隐患)")
+    print("  - 红色区域: 240-360° (有隐患)")
+    print()
+    print("💡 使用方法:")
+    print("  1. 初始化: detector = FireExtinguisherDetectorOptimized()")
+    print("  2. 检测: result = detector.detect(image)")
+    print("  3. 查看结果: result['evidence']['zone'] 获取区域信息")
+    print()
+    print("✅ 代码生成完成!")
+    print("📋 下一步: 安装OpenCV依赖后测试")
